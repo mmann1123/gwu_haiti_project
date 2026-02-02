@@ -182,8 +182,8 @@ def main():
     # Commodity selector
     commodities = get_commodities()
     default_idx = (
-        commodities.index("Rice (4% Broken)")
-        if "Rice (4% Broken)" in commodities
+        commodities.index("Beans (black)")
+        if "Beans (black)" in commodities
         else 0
     )
     selected_commodity = st.sidebar.selectbox(
@@ -556,29 +556,6 @@ def main():
                     market_options.append(market_name)
                 else:
                     disabled_markets.append(market_name)
-
-            # Show data availability info
-            with st.expander("📊 Data Availability"):
-                avail_data = []
-                for market_name, info in availability.items():
-                    status = "✅ Included" if info["sufficient"] else "❌ Excluded"
-                    reason = info["reason"] if info["reason"] else "Sufficient data"
-                    avail_data.append(
-                        {
-                            "Market": market_name,
-                            "Observations": info["n_observations"],
-                            "Time Span (months)": info["months_span"],
-                            "Status": status,
-                            "Notes": reason,
-                        }
-                    )
-                avail_df = pd.DataFrame(avail_data)
-                st.dataframe(avail_df, use_container_width=True)
-
-                if disabled_markets:
-                    st.info(
-                        f"**Excluded markets:** {', '.join(disabled_markets)} (insufficient data: require 24+ months)"
-                    )
 
             # View selector
             view_mode = st.radio(
