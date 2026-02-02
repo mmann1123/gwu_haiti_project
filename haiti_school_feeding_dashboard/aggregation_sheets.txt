@@ -1,0 +1,281 @@
+=============================================================================
+                    AGGREGATION SHEETS (Hidden)
+=============================================================================
+
+These sheets pre-calculate data to keep the dashboard responsive.
+Create these sheets first, then hide them.
+
+=============================================================================
+SHEET: Monthly_Summary
+=============================================================================
+
+Purpose: Pre-calculated monthly averages by school
+Location: Hidden sheet
+
+HEADERS (Row 1):
+A1: School_ID
+B1: School_Name
+C1: Commune
+D1: Supervisor
+E1: Month
+F1: Avg_Attendance_Rate
+G1: Attendance_Count
+H1: Avg_Feeding_Rate
+I1: Feeding_Count
+J1: Total_Days_Planned
+K1: Total_Days_Fed
+L1: Enrollment
+
+-----------------------------------------------------------------------------
+OPTION A: Using QUERY (Recommended for large datasets)
+-----------------------------------------------------------------------------
+
+In cell A2, paste this single formula to generate all monthly summary data:
+
+=QUERY({
+  'Présence'!E:E,
+  'Présence'!F:F,
+  'Présence'!G:G,
+  'Présence'!H:H,
+  TEXT('Présence'!A:A,"YYYY-MM"),
+  'Présence'!O:O
+},
+"SELECT Col1, Col2, Col3, Col4, Col5, AVG(Col6), COUNT(Col6)
+ WHERE Col1 IS NOT NULL AND Col5 IS NOT NULL
+ GROUP BY Col1, Col2, Col3, Col4, Col5
+ LABEL AVG(Col6) 'Avg_Attendance', COUNT(Col6) 'Count'",
+1)
+
+Note: Adjust column letters based on your actual Présence sheet structure:
+- Col E = School ID
+- Col F = School Name
+- Col G = Commune
+- Col H = Supervisor
+- Col A = Date
+- Col O = Attendance Rate (Le taux de présence)
+
+-----------------------------------------------------------------------------
+OPTION B: Using UNIQUE + INDEX/MATCH (More flexible)
+-----------------------------------------------------------------------------
+
+A2: Get unique school-month combinations
+=UNIQUE(FILTER(
+  {Présence!E:E, TEXT(Présence!A:A,"YYYY-MM")},
+  Présence!E:E<>""
+))
+
+Then use AVERAGEIFS in columns F onwards:
+
+F2 (Avg Attendance Rate):
+=IFERROR(
+  AVERAGEIFS(
+    Présence!$O:$O,
+    Présence!$E:$E, $A2,
+    TEXT(Présence!$A:$A,"YYYY-MM"), $E2
+  ),
+  ""
+)
+
+G2 (Count):
+=COUNTIFS(
+  Présence!$E:$E, $A2,
+  TEXT(Présence!$A:$A,"YYYY-MM"), $E2,
+  Présence!$O:$O, "<>"
+)
+
+=============================================================================
+SHEET: Reason_Counts
+=============================================================================
+
+Purpose: Aggregated counts of non-feeding and attendance reasons
+Location: Hidden sheet
+
+SECTION 1: ATTENDANCE VARIATION REASONS
+-----------------------------------------------------------------------------
+
+Headers in A1:D1:
+A1: Reason_Category
+B1: Reason_Detail
+C1: Count
+D1: Month
+
+A2 onwards - List all reason categories:
+A2: Cause/effet scolaire
+A3: Cause/effet environnemental
+A4: Cause/effet communauté/famille
+A5: Cause/effet culturel
+A6: Autre
+
+Count formula (C2, adjust for each row):
+=COUNTIFS(
+  Présence!P:P, A2,
+  TEXT(Présence!A:A,"YYYY-MM"), SelectedMonth
+)
+
+Or for all-time totals:
+=COUNTIF(Présence!P:P, A2)
+
+
+SECTION 2: NON-FEEDING REASONS (Starting row 10)
+-----------------------------------------------------------------------------
+
+Headers in A10:D10:
+A10: NonFeeding_Category
+B10: Count_Reason1
+C10: Count_Reason2
+D10: Count_Reason3
+E10: Count_Reason4
+F10: Count_Reason5
+G10: Total_Count
+
+A11 onwards - List non-feeding categories:
+A11: Communauté
+A12: Partenaire
+A13: École
+A14: Fournisseur
+A15: Autre
+
+Count formula for Reason 1 (B11):
+=COUNTIF('Taux d''alimentation'!L:L, $A11)
+
+Count formula for Reason 2 (C11):
+=COUNTIF('Taux d''alimentation'!N:N, $A11)
+
+(Continue for columns 3-5, adjusting the column letter for each reason column)
+
+Total Count (G11):
+=SUM(B11:F11)
+
+
+SECTION 3: DYNAMIC MONTHLY REASON COUNTS
+-----------------------------------------------------------------------------
+
+For filtered reason counts by month:
+
+=SUMPRODUCT(
+  (TEXT('Taux d''alimentation'!A:A,"YYYY-MM")=SelectedMonth)*
+  ('Taux d''alimentation'!L:L=A11)
+)
+
+=============================================================================
+SHEET: School_Current
+=============================================================================
+
+Purpose: Latest month data per school for quick lookups
+Location: Hidden sheet
+
+HEADERS (Row 1):
+A1: School_ID
+B1: School_Name
+C1: Commune
+D1: Supervisor
+E1: Latest_Month
+F1: Current_Attendance_Rate
+G1: Previous_Attendance_Rate
+H1: Attendance_Change
+I1: Current_Feeding_Rate
+J1: Previous_Feeding_Rate
+K1: Feeding_Change
+L1: Current_Enrollment
+M1: Alert_Status
+
+-----------------------------------------------------------------------------
+FORMULAS
+-----------------------------------------------------------------------------
+
+A2 - Get unique schools:
+=UNIQUE(FILTER(Présence!E:E, Présence!E:E<>""))
+
+E2 - Latest month for this school:
+=TEXT(
+  MAXIFS(Présence!A:A, Présence!E:E, A2),
+  "YYYY-MM"
+)
+
+F2 - Current month attendance:
+=IFERROR(
+  AVERAGEIFS(
+    Présence!O:O,
+    Présence!E:E, A2,
+    TEXT(Présence!A:A,"YYYY-MM"), E2
+  ),
+  ""
+)
+
+G2 - Previous month attendance:
+=IFERROR(
+  AVERAGEIFS(
+    Présence!O:O,
+    Présence!E:E, A2,
+    TEXT(Présence!A:A,"YYYY-MM"), TEXT(EDATE(DATEVALUE(E2&"-01"),-1),"YYYY-MM")
+  ),
+  ""
+)
+
+H2 - Attendance change:
+=IFERROR(F2-G2, "")
+
+I2 - Current feeding rate:
+=IFERROR(
+  AVERAGEIFS(
+    'Taux d''alimentation'!K:K,
+    'Taux d''alimentation'!E:E, A2,
+    TEXT('Taux d''alimentation'!A:A,"YYYY-MM"), E2
+  ),
+  ""
+)
+
+J2 - Previous feeding rate:
+=IFERROR(
+  AVERAGEIFS(
+    'Taux d''alimentation'!K:K,
+    'Taux d''alimentation'!E:E, A2,
+    TEXT('Taux d''alimentation'!A:A,"YYYY-MM"), TEXT(EDATE(DATEVALUE(E2&"-01"),-1),"YYYY-MM")
+  ),
+  ""
+)
+
+K2 - Feeding change:
+=IFERROR(I2-J2, "")
+
+M2 - Alert status:
+=IF(OR(F2<0.8, I2<0.8), "ALERT",
+  IF(OR(F2<0.85, I2<0.85), "WARNING", "OK")
+)
+
+=============================================================================
+COLUMN REFERENCE GUIDE
+=============================================================================
+
+Adjust these column references based on your actual data structure:
+
+PRÉSENCE SHEET:
+- Column A: Date (Aujourd'hui)
+- Column E: School ID (ID de l'école)
+- Column F: School Name (Nom de l'école)
+- Column G: Commune
+- Column H: Supervisor (Superviseur)
+- Column O: Attendance Rate (Le taux de présence)
+- Column P: Variation Category (La catégorie de variation)
+- Column Q: Variation Reason (La raison de la variation)
+
+TAUX D'ALIMENTATION SHEET:
+- Column A: Date
+- Column E: School ID
+- Column I: Planned feeding days (Le nombre de jours d'alimentation prévu)
+- Column J: Actual feeding days (Le nombre réel de jours d'alimentation)
+- Column K: Feeding rate (Le taux d'alimentation)
+- Column L: Non-feeding reason 1 (1. La catégorie de non-alimentation)
+- Column N: Non-feeding reason 2
+- Column P: Non-feeding reason 3
+- Column R: Non-feeding reason 4
+- Column T: Non-feeding reason 5
+
+INFO SUR LES ÉCOLES SHEET:
+- Column A: School ID
+- Column B: School Name
+- Column C: Commune
+- Column D: Department
+- Column E: Supervisor
+
+=============================================================================

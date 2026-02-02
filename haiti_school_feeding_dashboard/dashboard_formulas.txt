@@ -1,0 +1,715 @@
+=============================================================================
+                    DASHBOARD SHEET FORMULAS
+=============================================================================
+
+=============================================================================
+SHEET 1: Executive Summary
+=============================================================================
+
+PURPOSE: High-level KPIs at a glance for Program Managers
+
+LAYOUT:
+---------------------------------------------------------------------------
+|  A              |  B          |  C          |  D           |  E        |
+---------------------------------------------------------------------------
+| FILTERS         |             |             |              |           |
+| Month:          | [Dropdown]  |             | Target Att:  | 90%       |
+| Department:     | [Dropdown]  |             | Target Feed: | 90%       |
+---------------------------------------------------------------------------
+| KPI SNAPSHOT                                                            |
+---------------------------------------------------------------------------
+| Metric          | Current     | Previous    | Change       | Status    |
+---------------------------------------------------------------------------
+| Total Schools   |             |             |              |           |
+| Avg Attendance  |             |             |              |           |
+| Avg Feeding     |             |             |              |           |
+| Schools < 80%   |             |             |              |           |
+---------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+ROW 2: FILTERS
+-----------------------------------------------------------------------------
+
+B2 - Month Dropdown (Data Validation):
+Source: =SORT(UNIQUE(TEXT(Présence!A:A,"YYYY-MM")),1,FALSE)
+
+D2 - Department Dropdown (Data Validation):
+Source: =UNIQUE(FILTER('Info sur les écoles'!D:D,'Info sur les écoles'!D:D<>""))
+
+E2 - Attendance Target (default value): 0.9
+E3 - Feeding Target (default value): 0.9
+
+-----------------------------------------------------------------------------
+ROW 6-9: KPI METRICS
+-----------------------------------------------------------------------------
+
+B6 - Total Schools Active (current month):
+=COUNTA(UNIQUE(FILTER(
+  Présence!E:E,
+  TEXT(Présence!A:A,"YYYY-MM")=B2,
+  Présence!E:E<>""
+)))
+
+C6 - Total Schools (previous month):
+=COUNTA(UNIQUE(FILTER(
+  Présence!E:E,
+  TEXT(Présence!A:A,"YYYY-MM")=TEXT(EDATE(DATEVALUE(B2&"-01"),-1),"YYYY-MM"),
+  Présence!E:E<>""
+)))
+
+D6 - Change:
+=B6-C6
+
+E6 - Status:
+=IF(D6>=0,"✓","!")
+
+
+B7 - Average Attendance Rate (current month):
+=IFERROR(
+  AVERAGEIF(
+    TEXT(Présence!A:A,"YYYY-MM"), B2,
+    Présence!O:O
+  ),
+  0
+)
+
+C7 - Avg Attendance (previous month):
+=IFERROR(
+  AVERAGEIF(
+    TEXT(Présence!A:A,"YYYY-MM"),
+    TEXT(EDATE(DATEVALUE(B2&"-01"),-1),"YYYY-MM"),
+    Présence!O:O
+  ),
+  0
+)
+
+D7 - Attendance Change (formatted):
+=IF(B7-C7>0,"+"&TEXT(B7-C7,"0.0%"),TEXT(B7-C7,"0.0%"))
+
+E7 - Status with color:
+=IF(B7>=$E$2,"OK",IF(B7>=0.7,"WARNING","ALERT"))
+
+
+B8 - Average Feeding Rate (current month):
+=IFERROR(
+  AVERAGEIF(
+    TEXT('Taux d''alimentation'!A:A,"YYYY-MM"), B2,
+    'Taux d''alimentation'!K:K
+  ),
+  0
+)
+
+C8 - Avg Feeding (previous month):
+=IFERROR(
+  AVERAGEIF(
+    TEXT('Taux d''alimentation'!A:A,"YYYY-MM"),
+    TEXT(EDATE(DATEVALUE(B2&"-01"),-1),"YYYY-MM"),
+    'Taux d''alimentation'!K:K
+  ),
+  0
+)
+
+D8 - Feeding Change:
+=IF(B8-C8>0,"+"&TEXT(B8-C8,"0.0%"),TEXT(B8-C8,"0.0%"))
+
+E8 - Status:
+=IF(B8>=$E$3,"OK",IF(B8>=0.7,"WARNING","ALERT"))
+
+
+B9 - Schools Below 80% Attendance:
+=SUMPRODUCT(
+  (TEXT(Présence!A:A,"YYYY-MM")=B2)*
+  (Présence!O:O<0.8)*
+  (Présence!O:O<>"")
+)
+
+-----------------------------------------------------------------------------
+ROW 12-17: ALERTS TABLE
+-----------------------------------------------------------------------------
+
+A12: "Schools Needing Attention"
+
+Headers Row 13:
+A13: School Name
+B13: Commune
+C13: Attendance
+D13: Feeding Rate
+E13: Issue
+
+A14 (Array formula - returns schools with issues):
+=IFERROR(
+  FILTER(
+    {School_Current!B:B, School_Current!C:C, School_Current!F:F, School_Current!I:I, School_Current!M:M},
+    School_Current!M:M="ALERT"
+  ),
+  "No alerts"
+)
+
+-----------------------------------------------------------------------------
+ROW 20+: REGIONAL COMPARISON
+-----------------------------------------------------------------------------
+
+A20: "Attendance by Commune"
+
+This section uses a QUERY to get commune-level averages:
+
+A21 (Array formula):
+=QUERY(
+  {Présence!G:G, Présence!O:O, TEXT(Présence!A:A,"YYYY-MM")},
+  "SELECT Col1, AVG(Col2)
+   WHERE Col3 = '"&B2&"' AND Col1 IS NOT NULL
+   GROUP BY Col1
+   ORDER BY AVG(Col2) DESC
+   LABEL Col1 'Commune', AVG(Col2) 'Avg Attendance'",
+  1
+)
+
+-----------------------------------------------------------------------------
+SPARKLINE FORMULAS
+-----------------------------------------------------------------------------
+
+6-Month Attendance Trend Sparkline (place in F7):
+=SPARKLINE(
+  QUERY(
+    {TEXT(Présence!A:A,"YYYY-MM"), Présence!O:O},
+    "SELECT AVG(Col2)
+     WHERE Col1 >= '"&TEXT(EDATE(DATEVALUE(B2&"-01"),-5),"YYYY-MM")&"'
+     GROUP BY Col1
+     ORDER BY Col1",
+    0
+  ),
+  {"charttype","line";"color","#4285F4";"linewidth",2}
+)
+
+6-Month Feeding Trend Sparkline (place in F8):
+=SPARKLINE(
+  QUERY(
+    {TEXT('Taux d''alimentation'!A:A,"YYYY-MM"), 'Taux d''alimentation'!K:K},
+    "SELECT AVG(Col2)
+     WHERE Col1 >= '"&TEXT(EDATE(DATEVALUE(B2&"-01"),-5),"YYYY-MM")&"'
+     GROUP BY Col1
+     ORDER BY Col1",
+    0
+  ),
+  {"charttype","line";"color","#34A853";"linewidth",2}
+)
+
+
+=============================================================================
+SHEET 2: Attendance Analysis
+=============================================================================
+
+PURPOSE: Track attendance trends and understand reasons for variation
+
+LAYOUT:
+---------------------------------------------------------------------------
+| FILTERS                                                                 |
+| Month: [____]  Commune: [____]  Supervisor: [____]  School Size: [____] |
+---------------------------------------------------------------------------
+| ATTENDANCE TREND (Chart Area)                                           |
+---------------------------------------------------------------------------
+| VARIANCE ANALYSIS                  | REASON BREAKDOWN                   |
+| Schools with >5% drop              | (Pie Chart Area)                   |
+---------------------------------------------------------------------------
+| DETAILED TABLE                                                          |
+---------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+ROW 2: FILTERS
+-----------------------------------------------------------------------------
+
+B2 - Month Dropdown:
+Source: =SORT(UNIQUE(TEXT(Présence!A:A,"YYYY-MM")),1,FALSE)
+
+D2 - Commune Dropdown:
+Source: ={"All";"--";SORT(UNIQUE(FILTER('Info sur les écoles'!C:C,'Info sur les écoles'!C:C<>"")))}
+
+F2 - Supervisor Dropdown:
+Source: ={"All";"--";SORT(UNIQUE(FILTER('Info sur les écoles'!E:E,'Info sur les écoles'!E:E<>"")))}
+
+H2 - School Size Dropdown:
+Source: All, Small (<100), Medium (100-300), Large (>300)
+
+-----------------------------------------------------------------------------
+ROW 5+: TREND DATA (for chart)
+-----------------------------------------------------------------------------
+
+A5: "Month"
+B5: "Avg Attendance"
+C5: "School Count"
+
+A6 (6-month trend data):
+=QUERY(
+  {TEXT(Présence!A:A,"YYYY-MM"), Présence!O:O, Présence!G:G},
+  "SELECT Col1, AVG(Col2), COUNT(Col2)
+   WHERE Col1 >= '"&TEXT(EDATE(DATEVALUE(B2&"-01"),-5),"YYYY-MM")&"'
+   "&IF(D2="All","","AND Col3 = '"&D2&"'")&"
+   GROUP BY Col1
+   ORDER BY Col1
+   LABEL Col1 'Month', AVG(Col2) 'Avg Attendance', COUNT(Col2) 'Count'",
+  1
+)
+
+-----------------------------------------------------------------------------
+VARIANCE ANALYSIS (Schools with significant drops)
+-----------------------------------------------------------------------------
+
+Starting at A15:
+A15: "Schools with Attendance Drop >5%"
+
+Headers A16:E16:
+A16: School
+B16: Commune
+C16: Current
+D16: Previous
+E16: Change
+
+A17 (Array formula):
+=IFERROR(
+  QUERY(
+    {School_Current!B:B, School_Current!C:C, School_Current!F:F, School_Current!G:G, School_Current!H:H},
+    "SELECT *
+     WHERE Col5 < -0.05
+     ORDER BY Col5
+     LIMIT 20",
+    0
+  ),
+  "No schools with >5% drop"
+)
+
+-----------------------------------------------------------------------------
+REASON BREAKDOWN
+-----------------------------------------------------------------------------
+
+Starting at G15:
+G15: "Attendance Variation Reasons"
+
+Headers G16:H16:
+G16: Reason Category
+H16: Count
+
+G17 (Reason categories with counts):
+=QUERY(
+  {Présence!P:P, TEXT(Présence!A:A,"YYYY-MM")},
+  "SELECT Col1, COUNT(Col1)
+   WHERE Col2 = '"&B2&"' AND Col1 IS NOT NULL AND Col1 <> ''
+   GROUP BY Col1
+   ORDER BY COUNT(Col1) DESC
+   LABEL Col1 'Reason', COUNT(Col1) 'Count'",
+  1
+)
+
+Alternative with all-time counts:
+G17:
+="Cause/effet scolaire"
+H17:
+=COUNTIF(Présence!P:P,G17)
+
+(Copy down for other categories)
+
+-----------------------------------------------------------------------------
+DETAILED SCHOOL TABLE
+-----------------------------------------------------------------------------
+
+Starting at A25:
+A25: "School Details"
+
+Headers A26:G26:
+A26: School ID
+B26: School Name
+C26: Commune
+D26: Supervisor
+E26: Attendance Rate
+F26: Variation Category
+G26: Variation Reason
+
+A27 (Filtered data based on dropdowns):
+=IFERROR(
+  QUERY(
+    {Présence!E:E, Présence!F:F, Présence!G:G, Présence!H:H, Présence!O:O, Présence!P:P, Présence!Q:Q, TEXT(Présence!A:A,"YYYY-MM")},
+    "SELECT Col1, Col2, Col3, Col4, Col5, Col6, Col7
+     WHERE Col8 = '"&$B$2&"'
+     "&IF($D$2="All","","AND Col3 = '"&$D$2&"'")&"
+     "&IF($F$2="All","","AND Col4 = '"&$F$2&"'")&"
+     ORDER BY Col5
+     LIMIT 100",
+    0
+  ),
+  "No data for selected filters"
+)
+
+
+=============================================================================
+SHEET 3: Feeding Rate Analysis
+=============================================================================
+
+PURPOSE: Track feeding days and understand non-feeding reasons
+
+-----------------------------------------------------------------------------
+ROW 2: FILTERS
+-----------------------------------------------------------------------------
+
+B2 - Week/Month selector:
+Source: =SORT(UNIQUE(TEXT('Taux d''alimentation'!A:A,"YYYY-MM")),1,FALSE)
+
+D2 - Commune:
+Source: ={"All";"--";SORT(UNIQUE(FILTER('Info sur les écoles'!C:C,'Info sur les écoles'!C:C<>"")))}
+
+F2 - School:
+Source: ={"All";"--";SORT(UNIQUE(FILTER('Info sur les écoles'!B:B,'Info sur les écoles'!B:B<>"")))}
+
+-----------------------------------------------------------------------------
+FEEDING RATE TREND (for chart)
+-----------------------------------------------------------------------------
+
+A5: "Month"
+B5: "Avg Feeding Rate"
+C5: "Total Days Planned"
+D5: "Total Days Fed"
+
+A6 (6-month trend):
+=QUERY(
+  {TEXT('Taux d''alimentation'!A:A,"YYYY-MM"),
+   'Taux d''alimentation'!K:K,
+   'Taux d''alimentation'!I:I,
+   'Taux d''alimentation'!J:J,
+   'Taux d''alimentation'!G:G},
+  "SELECT Col1, AVG(Col2), SUM(Col3), SUM(Col4)
+   WHERE Col1 >= '"&TEXT(EDATE(DATEVALUE(B2&"-01"),-5),"YYYY-MM")&"'
+   "&IF(D2="All","","AND Col5 = '"&D2&"'")&"
+   GROUP BY Col1
+   ORDER BY Col1",
+  1
+)
+
+-----------------------------------------------------------------------------
+DAYS FED VS PLANNED (for stacked bar chart)
+-----------------------------------------------------------------------------
+
+Starting A12:
+A12: "Days Fed vs Planned by Month"
+
+A13: Month
+B13: Days Fed
+C13: Days Not Fed
+
+A14:
+=QUERY(
+  {TEXT('Taux d''alimentation'!A:A,"YYYY-MM"),
+   'Taux d''alimentation'!J:J,
+   'Taux d''alimentation'!I:I-'Taux d''alimentation'!J:J},
+  "SELECT Col1, SUM(Col2), SUM(Col3)
+   WHERE Col1 >= '"&TEXT(EDATE(DATEVALUE(B2&"-01"),-5),"YYYY-MM")&"'
+   GROUP BY Col1
+   ORDER BY Col1
+   LABEL SUM(Col2) 'Days Fed', SUM(Col3) 'Days Not Fed'",
+  1
+)
+
+-----------------------------------------------------------------------------
+NON-FEEDING REASONS (for horizontal bar chart)
+-----------------------------------------------------------------------------
+
+Starting G12:
+G12: "Non-Feeding Reasons"
+
+G13: Category
+H13: Count
+
+Method 1 - QUERY across all 5 reason columns:
+=QUERY(
+  {'Taux d''alimentation'!L:L;
+   'Taux d''alimentation'!N:N;
+   'Taux d''alimentation'!P:P;
+   'Taux d''alimentation'!R:R;
+   'Taux d''alimentation'!T:T},
+  "SELECT Col1, COUNT(Col1)
+   WHERE Col1 IS NOT NULL AND Col1 <> ''
+   GROUP BY Col1
+   ORDER BY COUNT(Col1) DESC",
+  0
+)
+
+Method 2 - Manual with COUNTIF:
+G14: Communauté
+H14: =COUNTIF('Taux d''alimentation'!L:L,"Communauté")+COUNTIF('Taux d''alimentation'!N:N,"Communauté")+COUNTIF('Taux d''alimentation'!P:P,"Communauté")+COUNTIF('Taux d''alimentation'!R:R,"Communauté")+COUNTIF('Taux d''alimentation'!T:T,"Communauté")
+
+G15: Partenaire
+H15: =COUNTIF('Taux d''alimentation'!L:L,"Partenaire")+COUNTIF('Taux d''alimentation'!N:N,"Partenaire")+COUNTIF('Taux d''alimentation'!P:P,"Partenaire")+COUNTIF('Taux d''alimentation'!R:R,"Partenaire")+COUNTIF('Taux d''alimentation'!T:T,"Partenaire")
+
+(Continue for École, Fournisseur, Autre)
+
+-----------------------------------------------------------------------------
+DETAILED FEEDING TABLE
+-----------------------------------------------------------------------------
+
+Starting A25:
+A25: "Feeding Details"
+
+A26: School
+B26: Commune
+C26: Week
+D26: Days Planned
+E26: Days Fed
+F26: Rate
+G26: Reason 1
+H26: Reason 2
+
+A27:
+=IFERROR(
+  QUERY(
+    {'Taux d''alimentation'!F:F,
+     'Taux d''alimentation'!G:G,
+     'Taux d''alimentation'!A:A,
+     'Taux d''alimentation'!I:I,
+     'Taux d''alimentation'!J:J,
+     'Taux d''alimentation'!K:K,
+     'Taux d''alimentation'!L:L,
+     'Taux d''alimentation'!N:N,
+     TEXT('Taux d''alimentation'!A:A,"YYYY-MM")},
+    "SELECT Col1, Col2, Col3, Col4, Col5, Col6, Col7, Col8
+     WHERE Col9 = '"&$B$2&"'
+     "&IF($D$2="All","","AND Col2 = '"&$D$2&"'")&"
+     "&IF($F$2="All","","AND Col1 = '"&$F$2&"'")&"
+     ORDER BY Col6
+     LIMIT 100",
+    0
+  ),
+  "No data"
+)
+
+
+=============================================================================
+SHEET 4: School Detail
+=============================================================================
+
+PURPOSE: Drill-down to individual school performance
+
+-----------------------------------------------------------------------------
+SCHOOL SELECTOR
+-----------------------------------------------------------------------------
+
+B2 - School Dropdown:
+Source: =SORT(UNIQUE(FILTER('Info sur les écoles'!B:B,'Info sur les écoles'!B:B<>"")))
+
+-----------------------------------------------------------------------------
+SCHOOL PROFILE (Row 5-10)
+-----------------------------------------------------------------------------
+
+A5: "School ID:"
+B5: =IFERROR(VLOOKUP(B2,'Info sur les écoles'!B:A,2,FALSE),"")
+
+A6: "School Name:"
+B6: =B2
+
+A7: "Commune:"
+B7: =IFERROR(VLOOKUP(B2,'Info sur les écoles'!B:C,2,FALSE),"")
+
+A8: "Department:"
+B8: =IFERROR(VLOOKUP(B2,'Info sur les écoles'!B:D,3,FALSE),"")
+
+A9: "Supervisor:"
+B9: =IFERROR(VLOOKUP(B2,'Info sur les écoles'!B:E,4,FALSE),"")
+
+A10: "Grades Served:"
+B10: =IFERROR(VLOOKUP(B2,'Info sur les écoles'!B:F,5,FALSE),"")
+
+-----------------------------------------------------------------------------
+6-MONTH HISTORY TABLE (Row 13+)
+-----------------------------------------------------------------------------
+
+A13: "6-Month History"
+
+Headers A14:F14:
+A14: Month
+B14: Attendance Rate
+C14: Attendance Change
+D14: Feeding Rate
+E14: Feeding Change
+F14: Enrollment
+
+A15 (Get school's 6-month history):
+=IFERROR(
+  QUERY(
+    Monthly_Summary!A:L,
+    "SELECT Col5, Col6, Col8
+     WHERE Col2 = '"&B2&"'
+     ORDER BY Col5 DESC
+     LIMIT 6",
+    0
+  ),
+  "No history available"
+)
+
+Alternative using FILTER:
+A15:
+=IFERROR(
+  SORT(
+    FILTER(
+      {TEXT(Présence!A:A,"YYYY-MM"), Présence!O:O},
+      Présence!F:F=B2
+    ),
+    1, FALSE
+  ),
+  "No data"
+)
+
+-----------------------------------------------------------------------------
+CURRENT ISSUES (Row 23+)
+-----------------------------------------------------------------------------
+
+A23: "Recent Issues"
+
+A24: "Non-Feeding Reasons (Last 4 Weeks)"
+A25 (Array of recent non-feeding reasons):
+=IFERROR(
+  FILTER(
+    {'Taux d''alimentation'!A:A,
+     'Taux d''alimentation'!L:L,
+     'Taux d''alimentation'!M:M},
+    'Taux d''alimentation'!F:F=$B$2,
+    'Taux d''alimentation'!L:L<>""
+  ),
+  "No non-feeding events"
+)
+
+A30: "Attendance Variation Reasons (Last Month)"
+A31:
+=IFERROR(
+  FILTER(
+    {Présence!A:A, Présence!P:P, Présence!Q:Q},
+    Présence!F:F=$B$2,
+    TEXT(Présence!A:A,"YYYY-MM")=TEXT(TODAY(),"YYYY-MM"),
+    Présence!P:P<>""
+  ),
+  "No variation events"
+)
+
+-----------------------------------------------------------------------------
+PHYSICAL HEADCOUNT COMPARISON (Row 38+)
+-----------------------------------------------------------------------------
+
+A38: "Physical Headcount Comparison"
+
+Headers A39:E39:
+A39: Date
+B39: Reported Enrollment
+C39: Physical Count
+D39: Difference
+E39: % Variance
+
+A40:
+=IFERROR(
+  QUERY(
+    {'Comptage Physique'!A:A,
+     'Comptage Physique'!H:H,
+     'Comptage Physique'!I:I,
+     'Comptage Physique'!I:I-'Comptage Physique'!H:H,
+     ('Comptage Physique'!I:I-'Comptage Physique'!H:H)/'Comptage Physique'!H:H},
+    "SELECT Col1, Col2, Col3, Col4, Col5
+     WHERE Col6 = '"&B2&"'
+     ORDER BY Col1 DESC
+     LIMIT 5",
+    0
+  ),
+  "No headcount data"
+)
+
+Note: Adjust column references based on actual Comptage Physique structure.
+
+
+=============================================================================
+SHEET 5: Supervisor Performance
+=============================================================================
+
+PURPOSE: Compare supervisor areas for Program Managers
+
+-----------------------------------------------------------------------------
+SUPERVISOR RANKING
+-----------------------------------------------------------------------------
+
+A2: "Supervisor Performance Ranking"
+
+Headers A4:G4:
+A4: Rank
+B4: Supervisor
+C4: # Schools
+D4: Avg Attendance
+E4: Avg Feeding Rate
+F4: Schools < 80%
+G4: Status
+
+A5:
+=IFERROR(
+  QUERY(
+    {Présence!H:H, Présence!E:E, Présence!O:O, TEXT(Présence!A:A,"YYYY-MM")},
+    "SELECT Col1, COUNT(DISTINCT Col2), AVG(Col3)
+     WHERE Col4 = '"&'Executive Summary'!B2&"' AND Col1 IS NOT NULL
+     GROUP BY Col1
+     ORDER BY AVG(Col3) DESC
+     LABEL COUNT(DISTINCT Col2) 'Schools', AVG(Col3) 'Avg Attendance'",
+    1
+  ),
+  "No data"
+)
+
+-----------------------------------------------------------------------------
+SUPERVISOR DETAIL VIEW
+-----------------------------------------------------------------------------
+
+B15 - Supervisor Selector:
+Source: =UNIQUE(FILTER(Présence!H:H,Présence!H:H<>""))
+
+A17: "Schools for Selected Supervisor"
+
+Headers A18:F18:
+A18: School
+B18: Commune
+C18: Attendance
+D18: Feeding Rate
+E18: Status
+F18: Issues
+
+A19:
+=IFERROR(
+  QUERY(
+    {School_Current!B:B, School_Current!C:C, School_Current!F:F, School_Current!I:I, School_Current!M:M, School_Current!D:D},
+    "SELECT Col1, Col2, Col3, Col4, Col5
+     WHERE Col6 = '"&B15&"'
+     ORDER BY Col3",
+    0
+  ),
+  "Select a supervisor"
+)
+
+-----------------------------------------------------------------------------
+PROBLEM FLAGGING
+-----------------------------------------------------------------------------
+
+A30: "Supervisors with Multiple Problem Schools"
+
+Headers A31:D31:
+A31: Supervisor
+B31: Problem Schools
+C31: Total Schools
+D31: Problem Rate
+
+A32:
+=IFERROR(
+  QUERY(
+    {School_Current!D:D,
+     IF(School_Current!M:M="ALERT",1,0),
+     ARRAYFORMULA(IF(School_Current!D:D<>"",1,0))},
+    "SELECT Col1, SUM(Col2), COUNT(Col1), SUM(Col2)/COUNT(Col1)
+     WHERE Col1 IS NOT NULL
+     GROUP BY Col1
+     HAVING SUM(Col2) >= 2
+     ORDER BY SUM(Col2) DESC
+     LABEL SUM(Col2) 'Problem Schools', COUNT(Col1) 'Total', SUM(Col2)/COUNT(Col1) 'Rate'",
+    0
+  ),
+  "No supervisors with 2+ problem schools"
+)
+
+
+=============================================================================

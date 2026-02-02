@@ -1,0 +1,836 @@
+=============================================================================
+        CORRECTED DASHBOARD FORMULAS - Haiti School Feeding Program
+=============================================================================
+
+Based on actual data structure from: Summits_MEL_Database_December_2025.xlsx
+
+=============================================================================
+COLUMN REFERENCE GUIDE (CORRECT MAPPINGS)
+=============================================================================
+
+PRÉSENCE SHEET:
+  A: Le mois (Month - Excel serial date)
+  B: Nom de l'établissement (School Name)
+  C: Taille de l'école (School Size: Petite, Moyenne, Grande)
+  D: % Limite de variation
+  E: ID de l'établissement (School ID like HTI-SE-CE-TQ-001)
+  F: Commune
+  G: Departement
+  H: Supervisor
+  I: Garçons (Boys present)
+  J: Filles (Girls present)
+  K: Présence totale (Total present)
+  L: Garçons effectif (Boys enrolled)
+  M: Filles effectif (Girls enrolled)
+  N: Le total Effectif (Total enrolled)
+  O: Le taux de présence (Attendance Rate - decimal 0-1)
+  P: Présence moyenne du mois précédent
+  Q: Le taux de présence précédent (Previous attendance rate)
+  R: % de variation (Percent change)
+  S: La catégorie de variation (Variation category)
+  T: La raison de la variation (Variation reason)
+  U: L'autre raison de la variation
+
+TAUX D'ALIMENTATION SHEET:
+  A: Semaine commencant (Week start - Excel serial date)
+  B: Le mois (Month as text like "Jan-24")
+  C: Nom de l'établissement (School Name)
+  D: ID de l'établissement (School ID)
+  E: Commune
+  F: Departement
+  G: Supervisor
+  H: Le nombre de jours d'alimentation prévu cette semaine (Planned days)
+  I: Le nombre de jours d'ouverture de l'école cette semaine (School open days)
+  J: Le nombre réel de jours d'alimentation (Actual feeding days)
+  K: Le taux d'alimentation (Feeding rate - decimal 0-1)
+  L: 1. La catégorie de non-alimentation (Non-feeding category 1)
+  M: 1. La raison de non-alimentation (Non-feeding reason 1)
+  N: 1. Commentaires ou autres raisons
+  O: 2. La catégorie de non-alimentation (Category 2)
+  P: 2. La raison de non-alimentation
+  Q: 2. Commentaires
+  R: 3. La catégorie de non-alimentation
+  S: 3. La raison de non-alimentation
+  T: 3. Commentaires
+  U: 4. La catégorie de non-alimentation
+  V: 4. La raison de non-alimentation
+  W: 4. Commentaires
+  X: 5. La catégorie de non-alimentation
+  Y: 5. La raison de non-alimentation
+  Z: 5. Commentaires
+
+INFO SUR LES ÉCOLES SHEET (Data starts row 2):
+  A: Nom de l'Etablissement (School Name)
+  B: ID de l'Etablissement (School ID)
+  C: Commune
+  D: Departement
+  E: Supervisor
+  F: GPS
+  G: Grades served
+  H: School ownership
+
+COMPTAGE PHYSIQUE SHEET:
+  A: Month Start Date
+  B: Actual Date of Headcount
+  C: Nom de l'établissement
+  D: ID de l'établissement
+  E: Commune
+  F: Departement
+  G: Supervisor
+  H-I: Comptage Physique (Boys/Girls)
+  J-K: Effectif (Boys/Girls)
+  L-M: Présence (Boys/Girls)
+  N: Total Comptage Physique
+  O: Total Effectif
+  P: Total Présence
+  Q: % Variation de Effectif
+  R: % Variation de Présence
+  S: Catégorie de comparaison
+  T: La raison de la variation
+  U: L'autre raison de la variation
+
+
+=============================================================================
+SHEET 1: Executive Summary
+=============================================================================
+
+SETUP NOTES:
+- Create a dropdown in B2 for month selection
+- Set attendance target (default 90%) in E2
+- Set feeding target (default 90%) in E3
+
+-----------------------------------------------------------------------------
+FILTER DROPDOWNS (Row 2)
+-----------------------------------------------------------------------------
+
+B2 - Month Dropdown (Data Validation):
+=SORT(UNIQUE(FILTER(Présence!A:A, Présence!A:A<>"")), 1, FALSE)
+
+Note: Months are stored as Excel serial dates. Display format as "MMM-YY"
+
+E2 - Attendance Target: 0.9 (manually enter)
+E3 - Feeding Target: 0.9 (manually enter)
+
+-----------------------------------------------------------------------------
+KPI METRICS (Rows 6-9)
+-----------------------------------------------------------------------------
+
+B6 - Total Schools Active (current month):
+=COUNTA(UNIQUE(FILTER(Présence!E:E, Présence!A:A=$B$2, Présence!E:E<>"")))
+
+C6 - Total Schools (previous month):
+=COUNTA(UNIQUE(FILTER(Présence!E:E, Présence!A:A=EDATE($B$2,-1), Présence!E:E<>"")))
+
+D6 - Change:
+=B6-C6
+
+E6 - Status indicator:
+=IF(D6>=0,"↑","↓")
+
+
+B7 - Average Attendance Rate (current month):
+=IFERROR(AVERAGEIF(Présence!A:A, $B$2, Présence!O:O), 0)
+
+C7 - Avg Attendance (previous month):
+=IFERROR(AVERAGEIF(Présence!A:A, EDATE($B$2,-1), Présence!O:O), 0)
+
+D7 - Attendance Change:
+=IF(B7-C7>=0,"+"&TEXT(B7-C7,"0.0%"),TEXT(B7-C7,"0.0%"))
+
+E7 - Status:
+=IF(B7>=$E$2,"✓",IF(B7>=0.7,"⚠","✗"))
+
+
+B8 - Average Feeding Rate (current month):
+=IFERROR(
+  AVERAGEIFS(
+    'Taux d''alimentation'!K:K,
+    'Taux d''alimentation'!B:B, TEXT($B$2,"MMM-YY"),
+    'Taux d''alimentation'!K:K, "<>"
+  ),
+  0
+)
+
+C8 - Avg Feeding (previous month):
+=IFERROR(
+  AVERAGEIFS(
+    'Taux d''alimentation'!K:K,
+    'Taux d''alimentation'!B:B, TEXT(EDATE($B$2,-1),"MMM-YY"),
+    'Taux d''alimentation'!K:K, "<>"
+  ),
+  0
+)
+
+D8 - Feeding Change:
+=IF(B8-C8>=0,"+"&TEXT(B8-C8,"0.0%"),TEXT(B8-C8,"0.0%"))
+
+
+B9 - Schools Below 80% Attendance (count):
+=COUNTIFS(Présence!A:A, $B$2, Présence!O:O, "<0.8")
+
+C9 - Schools Below 80% Feeding:
+=COUNTIFS('Taux d''alimentation'!B:B, TEXT($B$2,"MMM-YY"), 'Taux d''alimentation'!K:K, "<0.8")
+
+-----------------------------------------------------------------------------
+ALERTS TABLE (Rows 13-22)
+-----------------------------------------------------------------------------
+
+A13: "Schools Needing Attention"
+
+Headers Row 14:
+A14: School Name
+B14: Commune
+C14: Attendance
+D14: Feeding Rate
+E14: Issue
+
+A15 (Array formula for schools below threshold):
+=IFERROR(
+  FILTER(
+    {Présence!B:B, Présence!F:F, Présence!O:O},
+    Présence!A:A=$B$2,
+    Présence!O:O<0.8
+  ),
+  "No alerts this month"
+)
+
+-----------------------------------------------------------------------------
+REGIONAL COMPARISON (Row 25+)
+-----------------------------------------------------------------------------
+
+A25: "Attendance by Commune (Current Month)"
+
+A26 (Query for commune averages):
+=IFERROR(
+  QUERY(
+    FILTER({Présence!F:F, Présence!O:O}, Présence!A:A=$B$2, Présence!F:F<>""),
+    "SELECT Col1, AVG(Col2), COUNT(Col2)
+     GROUP BY Col1
+     ORDER BY AVG(Col2) DESC
+     LABEL Col1 'Commune', AVG(Col2) 'Avg Attendance', COUNT(Col2) 'Schools'"
+  ),
+  "No data"
+)
+
+-----------------------------------------------------------------------------
+SPARKLINES (Column F)
+-----------------------------------------------------------------------------
+
+F7 - 6-Month Attendance Trend:
+=SPARKLINE(
+  ARRAYFORMULA(
+    IFERROR(
+      AVERAGEIF(Présence!A:A, EDATE($B$2, SEQUENCE(1,6,-5,1)), Présence!O:O),
+      0
+    )
+  ),
+  {"charttype","line";"color","#4285F4";"linewidth",2}
+)
+
+F8 - 6-Month Feeding Trend:
+=SPARKLINE(
+  ARRAYFORMULA(
+    IFERROR(
+      AVERAGEIF(
+        'Taux d''alimentation'!B:B,
+        TEXT(EDATE($B$2, SEQUENCE(1,6,-5,1)),"MMM-YY"),
+        'Taux d''alimentation'!K:K
+      ),
+      0
+    )
+  ),
+  {"charttype","line";"color","#34A853";"linewidth",2}
+)
+
+
+=============================================================================
+SHEET 2: Attendance Analysis
+=============================================================================
+
+-----------------------------------------------------------------------------
+FILTERS (Row 2)
+-----------------------------------------------------------------------------
+
+B2 - Month Dropdown:
+=SORT(UNIQUE(FILTER(Présence!A:A, Présence!A:A<>"")), 1, FALSE)
+
+D2 - Commune Dropdown:
+Validation list: All, [unique communes from Info sur les écoles!C:C]
+={"Tous";SORT(UNIQUE(FILTER('Info sur les écoles'!C:C, 'Info sur les écoles'!C:C<>"", ROW('Info sur les écoles'!C:C)>1)))}
+
+F2 - Supervisor Dropdown:
+={"Tous";SORT(UNIQUE(FILTER('Info sur les écoles'!E:E, 'Info sur les écoles'!E:E<>"", ROW('Info sur les écoles'!E:E)>1)))}
+
+H2 - School Size Dropdown:
+Validation list: Tous, Petite, Moyenne, Grande
+
+-----------------------------------------------------------------------------
+ATTENDANCE TREND DATA (Rows 5-11, for chart)
+-----------------------------------------------------------------------------
+
+A5: "Mois"
+B5: "Taux de présence moyen"
+C5: "Nombre d'écoles"
+
+A6 (Array for 6 months):
+=IFERROR(
+  QUERY(
+    {Présence!A:A, Présence!O:O, Présence!F:F, Présence!H:H, Présence!C:C},
+    "SELECT Col1, AVG(Col2), COUNT(Col2)
+     WHERE Col1 >= "&EDATE($B$2,-5)&"
+     "&IF($D$2="Tous","","AND Col3 = '"&$D$2&"'")&"
+     "&IF($F$2="Tous","","AND Col4 = '"&$F$2&"'")&"
+     "&IF($H$2="Tous","","AND Col5 = '"&$H$2&"'")&"
+     GROUP BY Col1
+     ORDER BY Col1"
+  ),
+  "Aucune donnée"
+)
+
+-----------------------------------------------------------------------------
+VARIANCE ANALYSIS (Row 15+)
+-----------------------------------------------------------------------------
+
+A15: "Écoles avec baisse de présence > 5%"
+
+Headers A16:E16:
+A16: École
+B16: Commune
+C16: Taux actuel
+D16: Taux précédent
+E16: Variation
+
+A17 (Schools with >5% attendance drop):
+=IFERROR(
+  FILTER(
+    {Présence!B:B, Présence!F:F, Présence!O:O, Présence!Q:Q, Présence!R:R},
+    Présence!A:A=$B$2,
+    Présence!R:R<-0.05,
+    IF($D$2="Tous",TRUE,Présence!F:F=$D$2)
+  ),
+  "Aucune école avec baisse > 5%"
+)
+
+-----------------------------------------------------------------------------
+REASON BREAKDOWN (Row 15, Column G+)
+-----------------------------------------------------------------------------
+
+G15: "Catégories de variation"
+
+Headers G16:H16:
+G16: Catégorie
+H16: Nombre
+
+G17: Cause/effet scolaire
+H17: =COUNTIFS(Présence!S:S, G17, Présence!A:A, $B$2)
+
+G18: Cause/effet environnemental
+H18: =COUNTIFS(Présence!S:S, G18, Présence!A:A, $B$2)
+
+G19: Cause/effect communauté/famille
+H19: =COUNTIFS(Présence!S:S, "*communauté*", Présence!A:A, $B$2)
+
+G20: Cause/effet culturel
+H20: =COUNTIFS(Présence!S:S, G20, Présence!A:A, $B$2)
+
+G21: Autre
+H21: =COUNTIFS(Présence!S:S, "*Autre*", Présence!A:A, $B$2)
+
+-----------------------------------------------------------------------------
+DETAILED TABLE (Row 25+)
+-----------------------------------------------------------------------------
+
+A25: "Détails par école"
+
+Headers A26:G26:
+A26: ID École
+B26: Nom
+C26: Commune
+D26: Superviseur
+E26: Taux présence
+F26: Catégorie variation
+G26: Raison
+
+A27 (Filtered school details):
+=IFERROR(
+  QUERY(
+    {Présence!E:E, Présence!B:B, Présence!F:F, Présence!H:H, Présence!O:O, Présence!S:S, Présence!T:T, Présence!A:A, Présence!C:C},
+    "SELECT Col1, Col2, Col3, Col4, Col5, Col6, Col7
+     WHERE Col8 = "&$B$2&"
+     "&IF($D$2="Tous","","AND Col3 = '"&$D$2&"'")&"
+     "&IF($F$2="Tous","","AND Col4 = '"&$F$2&"'")&"
+     "&IF($H$2="Tous","","AND Col9 = '"&$H$2&"'")&"
+     ORDER BY Col5
+     LIMIT 100"
+  ),
+  "Aucune donnée pour les filtres sélectionnés"
+)
+
+
+=============================================================================
+SHEET 3: Feeding Rate Analysis
+=============================================================================
+
+-----------------------------------------------------------------------------
+FILTERS (Row 2)
+-----------------------------------------------------------------------------
+
+B2 - Month:
+=SORT(UNIQUE(FILTER('Taux d''alimentation'!B:B, 'Taux d''alimentation'!B:B<>"")), 1, FALSE)
+
+D2 - Commune:
+={"Tous";SORT(UNIQUE(FILTER('Taux d''alimentation'!E:E, 'Taux d''alimentation'!E:E<>"")))}
+
+F2 - School:
+={"Toutes";SORT(UNIQUE(FILTER('Taux d''alimentation'!C:C, 'Taux d''alimentation'!C:C<>"")))}
+
+-----------------------------------------------------------------------------
+FEEDING TREND (Rows 5-11, for chart)
+-----------------------------------------------------------------------------
+
+A5: "Mois"
+B5: "Taux alimentation moyen"
+C5: "Jours prévus"
+D5: "Jours alimentés"
+
+A6 (6-month trend):
+=IFERROR(
+  QUERY(
+    {'Taux d''alimentation'!B:B, 'Taux d''alimentation'!K:K, 'Taux d''alimentation'!H:H, 'Taux d''alimentation'!J:J, 'Taux d''alimentation'!E:E},
+    "SELECT Col1, AVG(Col2), SUM(Col3), SUM(Col4)
+     WHERE Col1 IS NOT NULL
+     "&IF($D$2="Tous","","AND Col5 = '"&$D$2&"'")&"
+     GROUP BY Col1
+     ORDER BY Col1 DESC
+     LIMIT 6"
+  ),
+  "Aucune donnée"
+)
+
+-----------------------------------------------------------------------------
+DAYS FED VS PLANNED (Row 13+, for stacked bar)
+-----------------------------------------------------------------------------
+
+A13: "Jours alimentés vs prévus par mois"
+
+A14: Mois
+B14: Jours alimentés
+C14: Jours manqués
+
+A15:
+=IFERROR(
+  QUERY(
+    {'Taux d''alimentation'!B:B, 'Taux d''alimentation'!J:J, 'Taux d''alimentation'!H:H-'Taux d''alimentation'!J:J},
+    "SELECT Col1, SUM(Col2), SUM(Col3)
+     WHERE Col1 IS NOT NULL
+     GROUP BY Col1
+     ORDER BY Col1 DESC
+     LIMIT 6
+     LABEL SUM(Col2) 'Jours alimentés', SUM(Col3) 'Jours manqués'"
+  ),
+  "Aucune donnée"
+)
+
+-----------------------------------------------------------------------------
+NON-FEEDING REASONS (Column G+)
+-----------------------------------------------------------------------------
+
+G13: "Raisons de non-alimentation"
+
+G14: Catégorie
+H14: Nombre
+
+G15: Communauté
+H15: =SUMPRODUCT(
+  (('Taux d''alimentation'!L:L="Communauté")+
+   ('Taux d''alimentation'!O:O="Communauté")+
+   ('Taux d''alimentation'!R:R="Communauté")+
+   ('Taux d''alimentation'!U:U="Communauté")+
+   ('Taux d''alimentation'!X:X="Communauté"))*
+  ('Taux d''alimentation'!B:B=$B$2)
+)
+
+G16: Partenaire
+H16: =SUMPRODUCT(
+  (('Taux d''alimentation'!L:L="Partenaire")+
+   ('Taux d''alimentation'!O:O="Partenaire")+
+   ('Taux d''alimentation'!R:R="Partenaire")+
+   ('Taux d''alimentation'!U:U="Partenaire")+
+   ('Taux d''alimentation'!X:X="Partenaire"))*
+  ('Taux d''alimentation'!B:B=$B$2)
+)
+
+G17: École
+H17: =SUMPRODUCT(
+  (('Taux d''alimentation'!L:L="École")+
+   ('Taux d''alimentation'!O:O="École")+
+   ('Taux d''alimentation'!R:R="École")+
+   ('Taux d''alimentation'!U:U="École")+
+   ('Taux d''alimentation'!X:X="École"))*
+  ('Taux d''alimentation'!B:B=$B$2)
+)
+
+G18: Fournisseur
+H18: =SUMPRODUCT(
+  (('Taux d''alimentation'!L:L="Fournisseur")+
+   ('Taux d''alimentation'!O:O="Fournisseur")+
+   ('Taux d''alimentation'!R:R="Fournisseur")+
+   ('Taux d''alimentation'!U:U="Fournisseur")+
+   ('Taux d''alimentation'!X:X="Fournisseur"))*
+  ('Taux d''alimentation'!B:B=$B$2)
+)
+
+G19: Autre
+H19: =SUMPRODUCT(
+  (('Taux d''alimentation'!L:L="Autre")+
+   ('Taux d''alimentation'!O:O="Autre")+
+   ('Taux d''alimentation'!R:R="Autre")+
+   ('Taux d''alimentation'!U:U="Autre")+
+   ('Taux d''alimentation'!X:X="Autre"))*
+  ('Taux d''alimentation'!B:B=$B$2)
+)
+
+-----------------------------------------------------------------------------
+DETAILED FEEDING TABLE (Row 25+)
+-----------------------------------------------------------------------------
+
+A25: "Détails alimentation par école"
+
+Headers A26:H26:
+A26: École
+B26: Commune
+C26: Semaine
+D26: Jours prévus
+E26: Jours alimentés
+F26: Taux
+G26: Raison 1
+H26: Raison 2
+
+A27:
+=IFERROR(
+  QUERY(
+    {'Taux d''alimentation'!C:C, 'Taux d''alimentation'!E:E, 'Taux d''alimentation'!A:A,
+     'Taux d''alimentation'!H:H, 'Taux d''alimentation'!J:J, 'Taux d''alimentation'!K:K,
+     'Taux d''alimentation'!L:L, 'Taux d''alimentation'!M:M, 'Taux d''alimentation'!B:B},
+    "SELECT Col1, Col2, Col3, Col4, Col5, Col6, Col7, Col8
+     WHERE Col9 = '"&$B$2&"'
+     "&IF($D$2="Tous","","AND Col2 = '"&$D$2&"'")&"
+     "&IF($F$2="Toutes","","AND Col1 = '"&$F$2&"'")&"
+     ORDER BY Col6
+     LIMIT 100"
+  ),
+  "Aucune donnée"
+)
+
+
+=============================================================================
+SHEET 4: School Detail
+=============================================================================
+
+-----------------------------------------------------------------------------
+SCHOOL SELECTOR
+-----------------------------------------------------------------------------
+
+B2 - School Dropdown:
+=SORT(UNIQUE(FILTER('Info sur les écoles'!A:A, 'Info sur les écoles'!A:A<>"", ROW('Info sur les écoles'!A:A)>1)))
+
+-----------------------------------------------------------------------------
+SCHOOL PROFILE (Rows 5-12)
+-----------------------------------------------------------------------------
+
+A5: "ID École:"
+B5: =IFERROR(INDEX('Info sur les écoles'!B:B, MATCH($B$2,'Info sur les écoles'!A:A,0)), "")
+
+A6: "Nom:"
+B6: =$B$2
+
+A7: "Commune:"
+B7: =IFERROR(INDEX('Info sur les écoles'!C:C, MATCH($B$2,'Info sur les écoles'!A:A,0)), "")
+
+A8: "Département:"
+B8: =IFERROR(INDEX('Info sur les écoles'!D:D, MATCH($B$2,'Info sur les écoles'!A:A,0)), "")
+
+A9: "Superviseur:"
+B9: =IFERROR(INDEX('Info sur les écoles'!E:E, MATCH($B$2,'Info sur les écoles'!A:A,0)), "")
+
+A10: "Niveaux:"
+B10: =IFERROR(INDEX('Info sur les écoles'!G:G, MATCH($B$2,'Info sur les écoles'!A:A,0)), "")
+
+A11: "Type:"
+B11: =IFERROR(INDEX('Info sur les écoles'!H:H, MATCH($B$2,'Info sur les écoles'!A:A,0)), "")
+
+-----------------------------------------------------------------------------
+6-MONTH HISTORY (Rows 15-22)
+-----------------------------------------------------------------------------
+
+A15: "Historique 6 mois"
+
+Headers A16:E16:
+A16: Mois
+B16: Taux présence
+C16: Variation
+D16: Taux alimentation
+E16: Effectif
+
+A17 (Get 6-month history for selected school):
+=IFERROR(
+  QUERY(
+    {Présence!A:A, Présence!O:O, Présence!R:R, Présence!N:N, Présence!B:B},
+    "SELECT Col1, AVG(Col2), AVG(Col3), AVG(Col4)
+     WHERE Col5 = '"&$B$2&"'
+     GROUP BY Col1
+     ORDER BY Col1 DESC
+     LIMIT 6"
+  ),
+  "Aucun historique"
+)
+
+-----------------------------------------------------------------------------
+CURRENT ISSUES (Rows 25-35)
+-----------------------------------------------------------------------------
+
+A25: "Problèmes récents"
+
+A26: "Raisons de non-alimentation (4 dernières semaines)"
+
+A27:
+=IFERROR(
+  FILTER(
+    {'Taux d''alimentation'!A:A, 'Taux d''alimentation'!L:L, 'Taux d''alimentation'!M:M},
+    'Taux d''alimentation'!C:C=$B$2,
+    'Taux d''alimentation'!L:L<>""
+  ),
+  "Aucun problème d'alimentation signalé"
+)
+
+A32: "Variations de présence récentes"
+
+A33:
+=IFERROR(
+  FILTER(
+    {Présence!A:A, Présence!S:S, Présence!T:T},
+    Présence!B:B=$B$2,
+    Présence!S:S<>""
+  ),
+  "Aucune variation signalée"
+)
+
+-----------------------------------------------------------------------------
+PHYSICAL HEADCOUNT COMPARISON (Rows 40-48)
+-----------------------------------------------------------------------------
+
+A40: "Comparaison comptage physique"
+
+Headers A41:E41:
+A41: Date
+B41: Effectif déclaré
+C41: Comptage physique
+D41: Différence
+E41: % Variance
+
+A42:
+=IFERROR(
+  FILTER(
+    {'Comptage Physique'!B:B, 'Comptage Physique'!O:O, 'Comptage Physique'!N:N,
+     'Comptage Physique'!N:N-'Comptage Physique'!O:O, 'Comptage Physique'!Q:Q},
+    'Comptage Physique'!C:C=$B$2
+  ),
+  "Aucune donnée de comptage"
+)
+
+
+=============================================================================
+SHEET 5: Supervisor Performance
+=============================================================================
+
+-----------------------------------------------------------------------------
+SUPERVISOR RANKING TABLE
+-----------------------------------------------------------------------------
+
+A2: "Classement des superviseurs"
+
+Headers A4:G4:
+A4: Rang
+B4: Superviseur
+C4: Nb écoles
+D4: Taux présence moyen
+E4: Taux alimentation moyen
+F4: Écoles < 80%
+G4: Statut
+
+B5 (Supervisor ranking by attendance):
+=IFERROR(
+  QUERY(
+    {Présence!H:H, Présence!E:E, Présence!O:O, Présence!A:A},
+    "SELECT Col1, COUNT(DISTINCT Col2), AVG(Col3)
+     WHERE Col4 = "&'Executive Summary'!$B$2&" AND Col1 IS NOT NULL AND Col1 <> ''
+     GROUP BY Col1
+     ORDER BY AVG(Col3) DESC
+     LABEL COUNT(DISTINCT Col2) 'Écoles', AVG(Col3) 'Taux présence'"
+  ),
+  "Aucune donnée"
+)
+
+A5 (Rank numbers - fill down):
+=ROW()-4
+
+F5 (Schools below 80% for this supervisor - fill down):
+=COUNTIFS(Présence!H:H, B5, Présence!A:A, 'Executive Summary'!$B$2, Présence!O:O, "<0.8")
+
+G5 (Status indicator):
+=IF(F5>=3,"⚠ Critique", IF(F5>=2,"⚠ Attention", "✓ OK"))
+
+-----------------------------------------------------------------------------
+SUPERVISOR DETAIL VIEW (Rows 15+)
+-----------------------------------------------------------------------------
+
+B15 - Supervisor Selector:
+=SORT(UNIQUE(FILTER(Présence!H:H, Présence!H:H<>"")))
+
+A17: "Écoles du superviseur sélectionné"
+
+Headers A18:F18:
+A18: École
+B18: Commune
+C18: Taux présence
+D18: Taux alimentation
+E18: Statut
+F18: Problème
+
+A19:
+=IFERROR(
+  FILTER(
+    {Présence!B:B, Présence!F:F, Présence!O:O, Présence!S:S},
+    Présence!H:H=$B$15,
+    Présence!A:A='Executive Summary'!$B$2
+  ),
+  "Sélectionnez un superviseur"
+)
+
+-----------------------------------------------------------------------------
+PROBLEM FLAGGING (Row 30+)
+-----------------------------------------------------------------------------
+
+A30: "Superviseurs avec plusieurs écoles en difficulté"
+
+Headers A31:D31:
+A31: Superviseur
+B31: Écoles en difficulté
+C31: Total écoles
+D31: Taux problème
+
+A32:
+=IFERROR(
+  QUERY(
+    {Présence!H:H,
+     IF(Présence!O:O<0.8,1,0),
+     Présence!E:E,
+     Présence!A:A},
+    "SELECT Col1, SUM(Col2), COUNT(DISTINCT Col3)
+     WHERE Col4 = "&'Executive Summary'!$B$2&" AND Col1 IS NOT NULL
+     GROUP BY Col1
+     HAVING SUM(Col2) >= 2
+     ORDER BY SUM(Col2) DESC
+     LABEL SUM(Col2) 'Problèmes', COUNT(DISTINCT Col3) 'Total'"
+  ),
+  "Aucun superviseur avec 2+ écoles en difficulté"
+)
+
+
+=============================================================================
+HIDDEN AGGREGATION SHEETS
+=============================================================================
+
+Create these sheets and hide them for dashboard performance.
+
+-----------------------------------------------------------------------------
+SHEET: Monthly_Summary (Hidden)
+-----------------------------------------------------------------------------
+
+Purpose: Pre-aggregated monthly metrics by school
+
+A1 headers:
+School_ID | School_Name | Commune | Supervisor | Month | Avg_Attendance | Avg_Feeding | Enrollment
+
+A2:
+=QUERY(
+  {Présence!E:E, Présence!B:B, Présence!F:F, Présence!H:H, Présence!A:A, Présence!O:O, Présence!N:N},
+  "SELECT Col1, Col2, Col3, Col4, Col5, AVG(Col6), AVG(Col7)
+   WHERE Col1 IS NOT NULL AND Col1 <> ''
+   GROUP BY Col1, Col2, Col3, Col4, Col5
+   ORDER BY Col5 DESC, Col1"
+)
+
+-----------------------------------------------------------------------------
+SHEET: School_Current (Hidden)
+-----------------------------------------------------------------------------
+
+Purpose: Latest month snapshot per school with alerts
+
+A1 headers:
+School_ID | School_Name | Commune | Supervisor | Latest_Month | Current_Att | Prev_Att | Att_Change | Current_Feed | Alert
+
+A2:
+=ARRAYFORMULA(
+  IFERROR(
+    LET(
+      schools, UNIQUE(FILTER(Présence!E:E, Présence!E:E<>"")),
+      schools
+    )
+  )
+)
+
+(Build out remaining columns with INDEX/MATCH for each school)
+
+
+=============================================================================
+CONDITIONAL FORMATTING RULES
+=============================================================================
+
+Apply these rules to attendance and feeding rate columns:
+
+RULE 1 - Red (Critical): Value < 0.7
+  Background: #EA4335
+  Font: White
+
+RULE 2 - Yellow (Warning): Value >= 0.7 AND < 0.8
+  Background: #FBBC04
+  Font: Black
+
+RULE 3 - Green (OK): Value >= 0.8
+  Background: #34A853
+  Font: White
+
+Apply to:
+- Executive Summary: B7:B8
+- Attendance Analysis: Column E (attendance rates)
+- Feeding Analysis: Column F (feeding rates)
+- School Detail: B17:B22, D17:D22
+- Supervisor Performance: Column D
+
+
+=============================================================================
+CHARTS TO CREATE
+=============================================================================
+
+1. EXECUTIVE SUMMARY
+   - Gauge chart: Current attendance vs target (from B7, target E2)
+   - Gauge chart: Current feeding vs target (from B8, target E3)
+   - Bar chart: Commune comparison (from A26+ data)
+
+2. ATTENDANCE ANALYSIS
+   - Line chart: 6-month attendance trend (from A6:C11)
+   - Pie chart: Variation reasons (from G17:H21)
+
+3. FEEDING ANALYSIS
+   - Line chart: 6-month feeding trend (from A6:D11)
+   - Stacked bar: Days fed vs missed (from A15:C20)
+   - Horizontal bar: Non-feeding reasons (from G15:H19)
+
+4. SCHOOL DETAIL
+   - Line chart: School's 6-month trend (from A17:E22)
+
+5. SUPERVISOR PERFORMANCE
+   - Bar chart: Supervisor ranking (from B5:D15)
+
+=============================================================================
