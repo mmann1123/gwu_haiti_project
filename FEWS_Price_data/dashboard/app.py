@@ -729,32 +729,34 @@ def main():
                     historical_market_df = market_df[
                         market_df["market"].isin(selected_forecast_markets)
                     ]
-                    
+
                     # Create combined plot
                     fig = go.Figure()
                     colors = px.colors.qualitative.Set2
 
                     for i, market_name in enumerate(selected_forecast_markets):
                         color = colors[i % len(colors)]
-                        
+
                         # Convert color to rgba format if needed
-                        if color.startswith('#'):
+                        if color.startswith("#"):
                             # Hex color - convert to rgb
                             rgb = px.colors.hex_to_rgb(color)
                             rgba_fill = f"rgba({rgb[0]}, {rgb[1]}, {rgb[2]}, 0.1)"
-                        elif color.startswith('rgb('):
+                        elif color.startswith("rgb("):
                             # Already rgb format - extract values and add alpha
-                            rgb_values = color.replace('rgb(', '').replace(')', '').split(',')
+                            rgb_values = (
+                                color.replace("rgb(", "").replace(")", "").split(",")
+                            )
                             rgba_fill = f"rgba({rgb_values[0]}, {rgb_values[1]}, {rgb_values[2]}, 0.1)"
                         else:
                             # Fallback
                             rgba_fill = "rgba(128, 128, 128, 0.1)"
-                        
+
                         # Get historical data for this market
                         market_historical = historical_market_df[
                             historical_market_df["market"] == market_name
                         ]
-                        
+
                         if len(market_historical) > 0:
                             # Show historical actual data
                             fig.add_trace(
@@ -768,7 +770,7 @@ def main():
                                     hovertemplate=f"{market_name}<br>Date: %{{x}}<br>Price: {currency_symbol}%{{y:.2f}}<extra></extra>",
                                 )
                             )
-                        
+
                         if market_name in forecasts:
                             forecast_df = forecasts[market_name]
 
@@ -810,7 +812,10 @@ def main():
                             )
                         else:
                             # Show info that forecast is not available but historical data is shown
-                            if market_name in results and not results[market_name].success:
+                            if (
+                                market_name in results
+                                and not results[market_name].success
+                            ):
                                 st.warning(
                                     f"**{market_name}**: Forecast unavailable ({results[market_name].error}), but historical data is shown"
                                 )
