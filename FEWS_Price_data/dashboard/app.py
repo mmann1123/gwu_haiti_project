@@ -182,9 +182,7 @@ def main():
     # Commodity selector
     commodities = get_commodities()
     default_idx = (
-        commodities.index("Beans (black)")
-        if "Beans (black)" in commodities
-        else 0
+        commodities.index("Beans (black)") if "Beans (black)" in commodities else 0
     )
     selected_commodity = st.sidebar.selectbox(
         "Select Commodity", commodities, index=default_idx
